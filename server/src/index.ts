@@ -2,16 +2,23 @@ import express ,{type Response,type Request}from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import connectDB from './db/connection.js'
-//have to import routes 
+import route from './routes/route.js'
+import { fileURLToPath } from 'url';
+import path from 'path';
 
-dotenv.config({path:'./config.env'});
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({
+    path:path.resolve(__dirname,"../.env"),
+});
+
 
 const app=express();
 const port = process.env.PORT||5000;
 
 app.use(cors());
 app.use(express.json());
-//app.use(routes);
+app.use(route);
 app.get('/',(_req:Request,res:Response)=>{
     res.send('API Running');
 })
@@ -29,5 +36,3 @@ connectDB()
 console.error('MongoDB connection failed:',error);
 
 });
-
-
