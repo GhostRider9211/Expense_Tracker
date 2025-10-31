@@ -1,19 +1,20 @@
 import express, { type Request, type Response } from "express";
 import { Category, Transaction } from "../models/model.js";
-
+import {type AuthenticateRequest} from '../middleware/authmiddleware.js'
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 export const create_category = async (
-  _req: Request,
+  req: AuthenticateRequest,
   res: Response
 ): Promise<void> => {
   try {
     const create = new Category({
       type: "Investment",
       color: "#FCBE44",
+      userId:req.user.id,
     });
     await create.save();
     res.json(create);
@@ -23,22 +24,23 @@ export const create_category = async (
 };
 
 export const get_category = async (
-  _req: Request,
+  req: AuthenticateRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const data = await Category.find({});
+    const data = await Category.find({userId:req.user.id});
     const filter = data.map((v) => ({
       type: v.type,
       color: v.color,
     }));
+    res.json(filter);
   } catch (error) {
     res.status(400).json({ message: `Error fetching categories:${error}` });
   }
 };
 
 export const create_Transaction = async (
-  req: Request,
+  req: AuthenticateRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -47,11 +49,16 @@ export const create_Transaction = async (
       return;
     }
     const { name, type, amount } = req.body;
+    if (!name || !type || !amount) {
+      res.status(400).json({ message: "Missing required fields" });
+      return;
+    }
     const create = new Transaction({
       name,
       type,
       amount,
       date: new Date(),
+      userId:req.user.id,
     });
 
     await create.save();
@@ -63,11 +70,15 @@ export const create_Transaction = async (
   }
 };
 export const get_transaction = async (
-  _req: Request,
+  req: AuthenticateRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const data = await Transaction.find({});
+       if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+    const data = await Transaction.find({userId:req.user.id});
     res.json(data);
   } catch (error) {
     res.status(400).json({ message: `Error fetching transactions: ${error}` });
@@ -75,28 +86,43 @@ export const get_transaction = async (
 };
 
 export const delete_transaction = async (
-  req: Request,
+  req: AuthenticateRequest,
   res: Response
 ): Promise<void> => {
   try {
-    if (!req.body) {
-      res.status(400).json({ message: "Request body not found" });
+    if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
       return;
     }
-    await Transaction.deleteOne(req.body).clone();
-    res.json("Record Deleted!....");
+    
+    const {_id}=req.body;
+    if(!_id){
+      res.status(400).json({ message: "Transaction ID required" });
+      return;
+    }
+    const result = await Transaction.deleteOne({_id,userId:req.user.id}).clone();
+    if(result.deletedCount===0){
+      res.status(404).json({ message: "Transaction not found or unauthorized" });
+      return;
+    }
+    res.json({message:"Record Deleted"})
   } catch (error) {
-    res
-      .status(400)
-      .json({ message: `Error while deleting transaction record: ${error}` });
+     res.status(400).json({ message: `Error deleting transaction: ${error}` });
   }
+    
 };
 
 export const get_label = async (
-  _req: Request,
+  req: AuthenticateRequest,
   res: Response
 ): Promise<void> => {
   try {
+
+     if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
     const result = await Transaction.aggregate([
       {
         $lookup: {
