@@ -1,29 +1,28 @@
-import {type Request,type Response,type NextFunction} from 'express'
-import jwt from 'jsonwebtoken';
+import jwt from "jsonwebtoken";
+import { type Request, type Response, type NextFunction } from "express";
 
-const JWT_SECRET = process.env.JWT_SECRET|| 'your_secret_key';
-
-export interface AuthenticateRequest extends Request{
-    user?:any;
+export interface AuthenticateRequest extends Request {
+  user?: { id: string };
 }
 
-export const authenticateToken=(req:Request,res:Response,next:NextFunction):void=>{
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if(!token){
-        res.status(401).json({message:'Access denied'});
-        return;
-    }
-    jwt.verify(token,JWT_SECRET,(err,user)=>{
-        if(err){
-            res.status(403).json({message:'Invalid token'});
-            return;
-        }
-        (req as any).user=user;
-        next();
-    });
+export const authenticateToken = (
+  req: AuthenticateRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(" ")[1];
 
+  if (!token) {
+    res.status(401).json({ message: "Access denied. No token provided." });
+    return;
+  }
 
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+    req.user = { id: decoded.id }; 
+    next();
+  } catch (error) {
+    res.status(403).json({ message: "Invalid token" });
+  }
 };
-
-

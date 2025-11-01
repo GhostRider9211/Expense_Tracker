@@ -1,58 +1,80 @@
 import express, {} from "express";
 import { Category, Transaction } from "../models/model.js";
+import {} from "../middleware/authmiddleware.js";
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-export const create_category = async (_req, res) => {
+export const create_category = async (req, res) => {
     try {
+        if (!req.user) {
+            res.status(401).json({ message: "Unauthorized: user not found" });
+            return;
+        }
         const create = new Category({
             type: "Investment",
             color: "#FCBE44",
+            userId: req.user.id,
         });
         await create.save();
         res.json(create);
     }
     catch (error) {
-        res.status(400).json({ message: `Error while creating category:${error}` });
+        res.status(400).json({ message: `Error while creating category: ${error}` });
     }
 };
-export const get_category = async (_req, res) => {
+export const get_category = async (req, res) => {
     try {
-        const data = await Category.find({});
+        if (!req.user) {
+            res.status(401).json({ message: "Unauthorized: user not found" });
+            return;
+        }
+        const data = await Category.find({ userId: req.user.id });
         const filter = data.map((v) => ({
             type: v.type,
             color: v.color,
         }));
+        res.json(filter);
     }
     catch (error) {
-        res.status(400).json({ message: `Error fetching categories:${error}` });
+        res.status(400).json({ message: `Error fetching categories: ${error}` });
     }
 };
 export const create_Transaction = async (req, res) => {
     try {
+        if (!req.user) {
+            res.status(401).json({ message: "Unauthorized: user not found" });
+            return;
+        }
         if (!req.body) {
             res.status(404).json("Post HTTP Data not Provided");
             return;
         }
         const { name, type, amount } = req.body;
+        if (!name || !type || !amount) {
+            res.status(400).json({ message: "Missing required fields" });
+            return;
+        }
         const create = new Transaction({
             name,
             type,
             amount,
             date: new Date(),
+            userId: req.user.id,
         });
         await create.save();
         res.json(create);
     }
     catch (error) {
-        res
-            .status(400)
-            .json({ message: `Error while creating transaction:${error}` });
+        res.status(400).json({ message: `Error while creating transaction: ${error}` });
     }
 };
-export const get_transaction = async (_req, res) => {
+export const get_transaction = async (req, res) => {
     try {
-        const data = await Transaction.find({});
+        if (!req.user) {
+            res.status(401).json({ message: "Unauthorized" });
+            return;
+        }
+        const data = await Transaction.find({ userId: req.user.id });
         res.json(data);
     }
     catch (error) {
@@ -61,44 +83,58 @@ export const get_transaction = async (_req, res) => {
 };
 export const delete_transaction = async (req, res) => {
     try {
-        if (!req.body) {
-            res.status(400).json({ message: "Request body not found" });
+        if (!req.user) {
+            res.status(401).json({ message: "Unauthorized" });
             return;
         }
-        await Transaction.deleteOne(req.body).clone();
-        res.json("Record Deleted!....");
+        const { _id } = req.body;
+        if (!_id) {
+            res.status(400).json({ message: "Transaction ID required" });
+            return;
+        }
+        const result = await Transaction.deleteOne({ _id, userId: req.user.id }).clone();
+        if (result.deletedCount === 0) {
+            res.status(404).json({ message: "Transaction not found or unauthorized" });
+            return;
+        }
+        res.json({ message: "Record Deleted" });
     }
     catch (error) {
-        res
-            .status(400)
-            .json({ message: `Error while deleting transaction record: ${error}` });
+        res.status(400).json({ message: `Error deleting transaction: ${error}` });
     }
 };
-export const get_label = async (_req, res) => {
+export const get_label = async (req, res) => {
     try {
+        if (!req.user) {
+            res.status(401).json({ message: "Unauthorized" });
+            return;
+        }
         const result = await Transaction.aggregate([
             {
+                $match: { userId: req.user.id },
+            },
+            {
                 $lookup: {
-                    from: 'categories',
-                    localField: 'type',
-                    foreignField: 'type',
-                    as: 'category_info',
+                    from: "categories",
+                    localField: "type",
+                    foreignField: "type",
+                    as: "category_info",
                 },
             },
             {
-                $unwind: '$category_info',
+                $unwind: "$category_info",
             },
         ]);
-        const data = result.map(v => ({
-            _id: v.id,
+        const data = result.map((v) => ({
+            _id: v._id,
             name: v.name,
             type: v.type,
             amount: v.amount,
-            color: v.category_info,
+            color: v.category_info.color,
         }));
         res.json(data);
     }
     catch (error) {
-        res.status(400).json("Lookup Collection Error");
+        res.status(400).json({ message: "Lookup Collection Error" });
     }
 };

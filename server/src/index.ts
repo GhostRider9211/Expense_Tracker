@@ -19,7 +19,8 @@ const port = process.env.PORT||5000;
 
 app.use(cors());
 app.use(express.json());
-app.use(route);
+app.use(express.urlencoded({extended:true}));
+app.use('/',route);
 app.use('/api/auth',authRoutes);
 app.get('/',(_req:Request,res:Response)=>{
     res.send('API Running');
