@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 interface User {
     id: string; // MongoDB _id
@@ -23,7 +26,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signIn = async (email: string, name?: string) => {
         try {
-            const res = await fetch('http://localhost:5000/api/auth/login', {
+            const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+            const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

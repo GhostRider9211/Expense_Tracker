@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Expense, ExpenseContextType } from '../types';
 import { useAuth } from './AuthContext';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
@@ -10,6 +13,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [income, setIncome] = useState<number>(0);
     const [initialBalance, setInitialBalance] = useState<number>(0);
     const [isProfileSet, setIsProfileSet] = useState<boolean>(false);
+    const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 
     // Fetch data when user changes
     useEffect(() => {
@@ -27,7 +31,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const fetchExpenses = async () => {
         if (!user?.id) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/expenses/${user.id}`);
+            const res = await fetch(`${BACKEND_URL}/api/expenses/${user.id}`);
             if (res.ok) {
                 const data = await res.json();
                 // Map _id to id
@@ -42,7 +46,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const fetchUserProfile = async () => {
         if (!user?.id) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/user/${user.id}`);
+            const res = await fetch(`${BACKEND_URL}/api/user/${user.id}`);
             if (res.ok) {
                 const data = await res.json();
                 setIncome(data.income);
@@ -59,7 +63,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const addExpense = async (expense: Omit<Expense, 'id'>) => {
         if (!user?.id) return;
         try {
-            const res = await fetch('http://localhost:5000/api/expenses', {
+            const res = await fetch(`${BACKEND_URL}/api/expenses`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...expense, userId: user.id }),
@@ -75,7 +79,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const deleteExpense = async (id: string) => {
         try {
-            const res = await fetch(`http://localhost:5000/api/expenses/${id}`, {
+            const res = await fetch(`${BACKEND_URL}/api/expenses/${id}`, {
                 method: 'DELETE',
             });
             if (res.ok) {
@@ -92,7 +96,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const setFinancialProfile = async (newIncome: number, newBalance: number) => {
         if (!user?.id) return;
         try {
-            const res = await fetch(`http://localhost:5000/api/user/${user.id}/profile`, {
+            const res = await fetch(`${BACKEND_URL}/api/user/${user.id}/profile`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ income: newIncome, initialBalance: newBalance }),
@@ -111,7 +115,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (!user?.id) return;
         // reuse setFinancialProfile logic or call API directly
         try {
-            const res = await fetch(`http://localhost:5000/api/user/${user.id}/profile`, {
+            const res = await fetch(`${BACKEND_URL}/api/user/${user.id}/profile`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ income: newIncome }),
@@ -131,7 +135,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const newInitialBalance = newTotalBalance - income + totalExpenses;
 
         try {
-            const res = await fetch(`http://localhost:5000/api/user/${user.id}/profile`, {
+            const res = await fetch(`${BACKEND_URL}/api/user/${user.id}/profile`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ initialBalance: newInitialBalance }),
